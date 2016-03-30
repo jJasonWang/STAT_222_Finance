@@ -1,0 +1,93 @@
+---
+title: "Finance Project"
+author: "Chih-Hui Wang"
+date: "March 22, 2016"
+output: html_document
+---
+
+```{r package}
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(data.table)
+```
+
+
+```{r data}
+AAPL <- fread("../Desktop/STAT 222/Finance/Data/AAPL_05222012_0930_1300_LOB_2.csv", data.table=FALSE)
+
+colname <- c('Index', 'Time', 'BID_PRICE1', 'BID_UPDATE_TIME1',
+ 'BID_SIZE1', 'ASK_PRICE1', 'ASK_UPDATE_TIME1', 'ASK_SIZE1', 'BID_PRICE2',
+ 'BID_UPDATE_TIME2', 'BID_SIZE2', 'ASK_PRICE2', 'ASK_UPDATE_TIME2',
+ 'ASK_SIZE2', 'BID_PRICE3', 'BID_UPDATE_TIME3', 'BID_SIZE3', 'ASK_PRICE3',
+ 'ASK_UPDATE_TIME3', 'ASK_SIZE3', 'BID_PRICE4', 'BID_UPDATE_TIME4',
+ 'BID_SIZE4', 'ASK_PRICE4', 'ASK_UPDATE_TIME4', 'ASK_SIZE4',
+ 'BID_PRICE5', 'BID_UPDATE_TIME5', 'BID_SIZE5', 'ASK_PRICE5', 'ASK_UPDATE_TIME5', 'ASK_SIZE5', 'BID_PRICE6', 'BID_UPDATE_TIME6', 'BID_SIZE6', 'ASK_PRICE6', 'ASK_UPDATE_TIME6', 'ASK_SIZE6', 'BID_PRICE7', 'BID_UPDATE_TIME7', 'BID_SIZE7', 'ASK_PRICE7', 'ASK_UPDATE_TIME7', 'ASK_SIZE7', 'BID_PRICE8', 'BID_UPDATE_TIME8', 'BID_SIZE8', 'ASK_PRICE8', 'ASK_UPDATE_TIME8', 'ASK_SIZE8', 'BID_PRICE9', 'BID_UPDATE_TIME9', 'BID_SIZE9', 'ASK_PRICE9',
+'ASK_UPDATE_TIME9', 'ASK_SIZE9', 'BID_PRICE10', 'BID_UPDATE_TIME10', 'BID_SIZE10', 'ASK_PRICE10', 'ASK_UPDATE_TIME10', 'ASK_SIZE10')
+
+colnames(AAPL) <- colname
+```
+
+```{r subset}
+AAPL$Time <- strptime(AAPL$Time, "%Y/%m/%d %H:%M:%OS")
+AAPL$mins <- substr(AAPL$Time, 1, 16)
+
+AAPL <- AAPL %>%
+  mutate(size_ratio=(ASK_SIZE1 + ASK_SIZE2 + ASK_SIZE3 + ASK_SIZE4 + ASK_SIZE5)/(BID_SIZE1 + BID_SIZE2 + BID_SIZE3 + BID_SIZE4 + BID_SIZE5),
+         mid_price=(BID_PRICE1 + ASK_PRICE1)/2)
+
+AAPL_subset <- AAPL[1:nrow(AAPL) %% 5 == 0, ]
+```
+
+```{r theme}
+project_theme <- theme_grey() +
+  theme(plot.title=element_text(size=20, face="bold"),
+  axis.text.x=element_text(size=12),
+  axis.text.y=element_text(size=12),
+  axis.title.x=element_text(size=15),
+  axis.title.y=element_text(size=15),
+  legend.title=element_text(size=14),
+  legend.text=element_text(size=12))
+```
+
+
+```{r timerange}
+g <- c("Train", "Validation", "Test", "Others")
+df <- data.frame(
+  group=factor(g, level=g),
+  start=c(AAPL[1, 2], AAPL[101675, 2], AAPL[152512, 2], AAPL[203349, 2]),
+  end=c(AAPL[101675, 2], AAPL[152512, 2], AAPL[203349, 2], AAPL[332672, 2])
+)
+
+yrange <- range(AAPL$mid_price)
+
+ggplot(AAPL_subset, aes(x=Time, y=mid_price)) + geom_line(alpha=0) +
+  geom_rect(data=df, aes(NULL, NULL, xmin=start, xmax=end, fill=group),
+            ymin=yrange[1], ymax=yrange[2], alpha=0.2) +
+  labs(title="Time Range for Different Dataset", x="Time", y="") + 
+  scale_fill_discrete("Data") + project_theme
+```
+
+```{r movingaverage}
+ggplot(AAPL_subset, aes(x=Time)) +
+  geom_line(aes(y=mid_price, col="Mid-price")) +
+  geom_line(aes(y=cumsum(mid_price)/1:66534, col="Moving Average")) +
+  labs(y="Price") +
+  scale_color_discrete(NULL)
+```
+
+
+```{r}
+g1 <- ggplot(AAPL_subset, aes(x=Time)) +
+  geom_smooth(aes(y=ASK_SIZE1 + ASK_SIZE2 + ASK_SIZE3 + ASK_SIZE4 + ASK_SIZE5, col="Top 5 ASK SIZE"), se=FALSE) + 
+  geom_smooth(aes(y=BID_SIZE1 + BID_SIZE2 + BID_SIZE3 + BID_SIZE4 + BID_SIZE5, col="Top 5 BID SIZE"), se=FALSE) + 
+  labs(y="Size") + theme(legend.position="bottom")
+
+grid.arrange(g_mid, g1)
+```
+
+```{r}
+ggplot(AAPL_subset, aes(x=BID_SIZE1, y=ASK_SIZE1)) + geom_point(alpha=1/10)
+ggplot(AAPL_subset, aes(x=ASK_SIZE1)) + geom_histogram()
+```
+
